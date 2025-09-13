@@ -1,7 +1,12 @@
 import asyncio
 import aiomysql
 from datetime import date
+import random
+import httpx # <--- 新增：用于下载文件
 from astrbot.api.event import filter, AstrMessageEvent
+# V--- 新增：引入会话控制与消息组件 ---
+from astrbot.core.utils.session_waiter import session_waiter, SessionController
+import astrbot.api.message_components as Comp
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 # V--- 我们将直接从 event 中获取 bot，因此不再需要导入 AiocqhttpAdapter ---V
@@ -28,21 +33,22 @@ class MyPlugin(Star):
             logger.info("数据库连接池创建成功。")
             async with self.db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    await cur.execute("CREATE TABLE IF NOT EXISTS users (qq_id BIGINT PRIMARYARY KEY, points INT DEFAULT 0, last_checkin DATE);")
+                    await cur.execute("CREATE TABLE IF NOT EXISTS users (qq_id BIGINT PRIMARY KEY, points INT DEFAULT 0, last_checkin DATE);")
                     await cur.execute("CREATE TABLE IF NOT EXISTS codes (id INT AUTO_INCREMENT PRIMARY KEY, code VARCHAR(255) UNIQUE NOT NULL);")
                     await cur.execute("CREATE TABLE IF NOT EXISTS whitelisted_groups (group_id BIGINT PRIMARY KEY);")
             logger.info("数据库表初始化检查完成。")
         except Exception as e:
             logger.error(f"数据库初始化失败: {e}")
 
-    @filter.regex(r"^签到$")
+    @filter.regex(r"^签到$") # 我们暂时改回“签到”，避免冲突插件的影响
     async def handle_checkin(self, event: AstrMessageEvent):
+        logger.info(f"【探针】: 检测到来自用户 {event.get_sender_id()} 的签到尝试...")
+        
         group_id = event.get_group_id()
         user_id = event.get_sender_id()
         user_name = event.get_sender_name()
 
-        is_whitelisted = await self.is_group_whitelisted(group_id)
-        if not is_whitelisted:
+        if not await self.is_group_whitelisted(group_id):
             return
 
         today = date.today()
@@ -51,17 +57,38 @@ class MyPlugin(Star):
                 await cur.execute("SELECT last_checkin FROM users WHERE qq_id = %s", (user_id,))
                 result = await cur.fetchone()
 
-                if result is None:
-                    await cur.execute("INSERT INTO users (qq_id, points, last_checkin) VALUES (%s, 10, %s)", (user_id, today))
-                    yield event.plain_result(f"欢迎新朋友 {user_name}！首次签到成功，获得 10 积分！")
+                if result and result[0] == today:
+                    yield event.plain_result(f"{user_name}，你今天已经签过到了哦，明天再来吧！")
                     return
 
-                last_checkin_date = result[0]
-                if last_checkin_date == today:
-                    yield event.plain_result(f"{user_name}，你今天已经签过到了哦，明天再来吧！")
+                # --- 全新的积分计算引擎 ---
+                base_points = random.randint(5, 15)
+                final_points = base_points
+                is_crit = random.random() < 0.05  # 5% 的暴击率
+
+                if is_crit:
+                    final_points *= 2
+                
+                # --- 构造回复消息 ---
+                reply_message = f"{user_name} 签到成功！\n获得了 {base_points} 点基础积分"
+                if is_crit:
+                    reply_message += f"，触发幸运翻倍！\n最终获得 {final_points} 积分！"
                 else:
-                    await cur.execute("UPDATE users SET points = points + 10, last_checkin = %s WHERE qq_id = %s", (today, user_id))
-                    yield event.plain_result(f"{user_name} 签到成功！获得 10 积分！")
+                    reply_message += "."
+                # -------------------------
+
+                if result is None: # 如果是新用户
+                    await cur.execute(
+                        "INSERT INTO users (qq_id, points, last_checkin) VALUES (%s, %s, %s)",
+                        (user_id, final_points, today)
+                    )
+                else: # 如果是老用户
+                    await cur.execute(
+                        "UPDATE users SET points = points + %s, last_checkin = %s WHERE qq_id = %s",
+                        (final_points, today, user_id)
+                    )
+                
+                yield event.plain_result(reply_message)
 
     @filter.regex(r"^我的积分$")
     async def query_points(self, event: AstrMessageEvent):
@@ -85,7 +112,7 @@ class MyPlugin(Star):
         yield event.plain_result(f"{user_name}，您当前的积分为：{points}")
 
     # V--- 我们将只重写 redeem_code 这个函数，以最终的智慧 ---V
-    @filter.regex(r"^兑换兑换码$")
+    @filter.regex(r"^兑换灵石$")
     async def redeem_code(self, event: AstrMessageEvent):
         # 确保事件来自 aiocqhttp 平台
         if not isinstance(event, AiocqhttpMessageEvent):
@@ -212,3 +239,78 @@ class MyPlugin(Star):
                         logger.error(f"添加兑换码 {code} 时出错: {e}")
         
         yield event.plain_result(f"操作完成！成功添加 {added_count} 个新兑换码。有 {len(code_list) - added_count} 个兑换码已存在或添加失败。")
+
+    # V--- 在这里，粘贴我们全新的批量导入引擎 ---V
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("导入兑换码")
+    async def import_codes_command(self, event: AstrMessageEvent):
+        """处理 /导入兑换码 指令，启动文件等待会话。"""
+        try:
+            yield event.plain_result("请在 60 秒内，发送一个包含兑换码的 .txt 文件。\n每个兑换码占一行。")
+
+            @session_waiter(timeout=60)
+            async def file_waiter(controller: SessionController, event: AstrMessageEvent):
+                # 1. 检查消息中是否包含文件
+                file_url = ""
+                for component in event.message_obj.message:
+                    if isinstance(component, Comp.File):
+                        # 在 aiocqhttp 中，file 组件通常包含 url
+                        file_url = getattr(component, "url", "")
+                        break
+                
+                if not file_url:
+                    # 如果不是文件，则继续等待，不中断会话
+                    await event.send(event.plain_result("收到的不是文件哦，请发送 .txt 文件。"))
+                    return
+
+                # 2. 下载并处理文件
+                try:
+                    async with httpx.AsyncClient() as client:
+                        response = await client.get(file_url, timeout=30)
+                        response.raise_for_status() # 如果下载失败则抛出异常
+                        text_content = response.text
+
+                    # 3. 解析并入库
+                    code_list = [line.strip() for line in text_content.splitlines() if line.strip()]
+                    if not code_list:
+                        await event.send(event.plain_result("文件内容为空，或格式不正确。"))
+                        controller.stop()
+                        return
+
+                    added_count = 0
+                    async with self.db_pool.acquire() as conn:
+                        async with conn.cursor() as cur:
+                            for code in code_list:
+                                try:
+                                    await cur.execute("INSERT IGNORE INTO codes (code) VALUES (%s)", (code,))
+                                    if cur.rowcount > 0:
+                                        added_count += 1
+                                except Exception as db_err:
+                                    logger.error(f"导入兑换码 {code} 时数据库出错: {db_err}")
+
+                    await event.send(event.plain_result(
+                        f"导入操作完成！\n"
+                        f"从文件中读取到 {len(code_list)} 个兑换码。\n"
+                        f"成功添加 {added_count} 个新兑换码。\n"
+                        f"有 {len(code_list) - added_count} 个兑换码已存在或添加失败。"
+                    ))
+
+                except httpx.HTTPStatusError as http_err:
+                    logger.error(f"下载兑换码文件失败: {http_err}")
+                    await event.send(event.plain_result("下载文件失败，请检查机器人网络或文件链接。"))
+                except Exception as e:
+                    logger.error(f"处理兑换码文件时发生未知错误: {e}", exc_info=True)
+                    await event.send(event.plain_result("处理文件时发生内部错误，请联系管理员查看日志。" ))
+                finally:
+                    controller.stop() # 无论成功与否，都结束会话
+
+            # 启动会话
+            await file_waiter(event)
+
+        except TimeoutError:
+            yield event.plain_result("超时未收到文件，导入操作已取消。")
+        except Exception as e:
+            logger.error(f"启动导入兑换码会话时出错: {e}", exc_info=True)
+            yield event.plain_result("启动导入会话时发生未知错误。")
+        finally:
+            event.stop_event() # 阻止事件继续传播

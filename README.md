@@ -28,7 +28,7 @@
 
 - **签到**: 在群内发送 `签到`
 - **查询积分**: 在群内发送 `我的积分`
-- **兑换**: 在群内发送 `兑换兑换码` (需要消耗 70 积分)
+- **兑换**: 在群内发送 `兑换灵石` (需要消耗 70 积分)
 
 ### 对于管理员
 
@@ -43,7 +43,7 @@
 
 ## 🔧 安装与配置
 
-1. **依赖**: 本插件需要 `aiomysql` 库。
+1. **依赖**: 本插件需要 `aiomysql` 和 `httpx` 库。请在 `requirements.txt` 文件中确认它们都已包含。
 2. **数据库**: 需要预先创建一个独立的 MySQL 数据库，并在 `main.py` 的 `initialize_database` 函数中，修改以下数据库连接信息：
    - `host`
    - `port`
@@ -51,6 +51,10 @@
    - `password`
    - `db`
 3. **管理员**: 请在 AstrBot 的 `config/default.yaml` 文件中，配置您的 QQ 号为 `admins`。
+
+---
+
+*This plugin was proudly crafted by Future-404.*文件中，配置您的 QQ 号为 `admins`。
 
 ---
 
