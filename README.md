@@ -1,4 +1,4 @@
-# 签到插件自定义兑换物品 (Check-in Plugin)
+# 多宝阁签到插件 V5 (Check-in Plugin Pro)
 
 ## 📖 简介
 
@@ -14,80 +14,37 @@
 
 ## 🔧 安装与配置
 
-### **第一步：处理依赖项 (Dependencies)**
+### **第一步：安装依赖 (Dependencies)**
 
-本插件的运行，依赖于两个核心的 Python 库：
+本插件需要 `aiomysql` 和 `httpx` 库。请确保已将它们添加至您的环境。
 
-1.  `aiomysql`: 用于与 MySQL 数据库进行异步通信，是所有数据存储（用户积分、兑换码库存等）的基础。
-2.  `httpx`: 用于在“批量导入”功能中，下载管理员发送的 `.txt` 文件。
-
-请确保您的环境中已安装这些库。最简单的方法，是检查并确保插件目录下的 `requirements.txt` 文件中包含以下两行：
-
+插件目录下的 `requirements.txt` 文件已列出所需依赖，可供参考：
 ```
 aiomysql
 httpx
 ```
 
-然后通过 `pip install -r requirements.txt` 来安装它们。
+### **第二步：配置插件 (Configuration)**
 
-### **第二步：配置数据库 (Database - 核心中的核心)**
+本插件所有配置项的结构、描述和默认值，都由项目根目录下的 `_conf_schema.json` 文件定义。您需要根据此文件的蓝图，在 AstrBot 的配置系统中为本插件提供配置。
 
-本插件需要一个**独立的 MySQL 数据库**来存储所有数据。您需要预先准备好一个可用的 MySQL 服务，并完成以下操作：
+**核心配置项解读:**
 
-1.  **创建数据库**: 在您的 MySQL 中创建一个新的数据库。例如，可以命名为 `checkin_plugin_db`。
-2.  **创建用户 (推荐)**: 为了安全，推荐您为这个数据库创建一个专用的用户，并授予其对该数据库的完全权限。例如，创建一个名为 `Future404` 的用户。
-3.  **获取连接信息**: 您需要准备好以下五项信息：
-    - **主机地址 (host)**: 数据库服务器的 IP 地址或域名 (如 `127.0.0.1` 或 `mysql`)。
-    - **端口 (port)**: 数据库的端口 (默认为 `3306`)。
-    - **用户名 (user)**: 您创建的专用用户名。
-    - **密码 (password)**: 该用户的密码。
-    - **数据库名 (db_name)**: 您创建的数据库的名称。
+1.  **`database` (数据库)**: 【必填】用于连接您的 MySQL 数据库。插件启动时，会根据此信息自动创建所需的数据表。
+    - `host`: 数据库主机地址。
+    - `port`: 数据库端口。
+    - `user`: 用户名。
+    - `password`: 密码。
+    - `db_name`: 数据库名称。
 
-4.  **填入 AstrBot 配置**: 将上述五项信息，填入 AstrBot 的主配置文件 (`config/default.yaml` 或您的自定义配置) 中，如下方示例所示。插件启动时，会自动读取这些信息来连接数据库，并自动创建所需的数据表 (`users`, `codes`, `whitelisted_groups`)。
+2.  **`rewards` (签到奖励)**: 【可选】用于定义签到时的各项奖励数值。若不配置，则使用默认值。
 
-### **第三步：完成插件配置**
+3.  **`item_slot_X` (商品栏)**: 【可选】用于上架“多宝阁”中的商品。本插件预设了 `item_slot_1` 到 `item_slot_10` 共 10 个商品栏，您可以按需启用和配置。
+    - `enabled`: `true` 为上架，`false` 为下架。
+    - `item_name`: 商品的名称。
+    - `item_cost`: 兑换所需积分。
 
-在 AstrBot 的主配置文件中，找到或创建 `checkin_plugin_pro` 区域，并参照以下示例完成所有配置：
-
-**配置示例 (`config/default.yaml`):**
-```yaml
-# ... (其他 AstrBot 配置) ...
-
-# 签到插件 V5 的配置区域
-checkin_plugin_pro:
-  # 【必填】数据库连接信息
-  database:
-    host: "mysql"
-    port: 3306
-    user: "your_user" # 
-    password: "YOUR_PASSWORD_HERE" 
-    db_name: "your_db_name" # 
-
-  # 【可选】签到奖励数值 (若不填则使用默认值)
-  rewards:
-    first_checkin_points: 20
-    min_points: 5
-    max_points: 15
-    crit_chance: 0.05
-
-  # 【可选】固定的商品栏位 (根据需要启用和配置)
-  item_slot_1:
-    enabled: true
-    item_name: "灵石"
-    item_cost: 75
-  item_slot_2:
-    enabled: true
-    item_name: "月卡"
-    item_cost: 300
-  item_slot_3:
-    enabled: false
-    item_name: "改名卡"
-    item_cost: 100
-```
-
-### **第四步：设置管理员**
-
-请确保您的 QQ 号已添加在 AstrBot 主配置文件的 `admins` 列表中，以便您能使用管理员指令。
+> **注意**: 要使用管理员指令，您的用户身份需要在 AstrBot 中被识别为管理员。
 
 ---
 
