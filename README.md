@@ -1,4 +1,4 @@
-# 多宝阁签到插件 V5 (Check-in Plugin Pro)
+# 签到插件自定义兑换物品 (Check-in Plugin)
 
 ## 📖 简介
 
