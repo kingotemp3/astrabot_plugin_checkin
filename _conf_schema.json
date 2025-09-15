@@ -1,0 +1,50 @@
+{
+  "database": {
+    "description": "【数据库连接信息】",
+    "type": "object",
+    "items": {
+      "host": { "description": "数据库主机地址", "type": "string", "default": "mysql" },
+      "port": { "description": "数据库端口", "type": "int", "default": 3306 },
+      "user": { "description": "数据库用户名", "type": "string", "default": "your_user" },
+      "password": { "description": "数据库密码", "type": "string", "default": "YOUR_PASSWORD_HERE" },
+      "db_name": { "description": "数据库名称", "type": "string", "default": "your_db_name" }
+    }
+  },
+  "rewards": {
+    "description": "【签到奖励核心数值】",
+    "type": "object",
+    "items": {
+      "first_checkin_points": { "description": "首次签到特别奖励积分", "type": "int", "default": 20 },
+      "min_points": { "description": "每日签到最少获得积分", "type": "int", "default": 5 },
+      "max_points": { "description": "每日签到最多获得积分", "type": "int", "default": 15 },
+      "crit_chance": { "description": "签到时触发积分翻倍的概率 (0.0 至 1.0)", "type": "float", "default": 0.05 }
+    }
+  },
+  "item_slot_1": {
+    "description": "【商品栏一】",
+    "type": "object",
+    "items": {
+      "enabled": { "description": "是否启用此商品栏", "type": "bool", "default": true },
+      "item_name": { "description": "【商品名称】 (如 灵石)", "type": "string" },
+      "item_cost": { "description": "【兑换价格】", "type": "int", "default": 75 }
+    }
+  },
+  "item_slot_2": {
+    "description": "【商品栏二】",
+    "type": "object",
+    "items": {
+      "enabled": { "description": "是否启用此商品栏", "type": "bool", "default": false },
+      "item_name": { "description": "【商品名称】 (如 月石)", "type": "string" },
+      "item_cost": { "description": "【兑换价格】", "type": "int", "default": 150 }
+    }
+  },
+  "item_slot_3": {
+    "description": "【商品栏三】(可根据需要继续添加 item_slot_4, 5...)",
+    "type": "object",
+    "items": {
+      "enabled": { "description": "是否启用此商品栏", "type": "bool", "default": false },
+      "item_name": { "description": "【商品名称】", "type": "string" },
+      "item_cost": { "description": "【兑换价格】", "type": "int" }
+    }
+  }
+}

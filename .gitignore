@@ -1,0 +1,5 @@
+# 忽略所有由 AstrBot 自动生成的、包含用户私人配置的 .json 文件
+*_config.json
+
+# 忽略 Python 自动生成的缓存文件夹
+__pycache__/
