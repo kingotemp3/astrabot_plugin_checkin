@@ -4,8 +4,11 @@
 
 这是一个为 AstrBot 设计的、基于固定商品栏的高度可配置化签到插件。它采用与 AstrBot 配置界面完美兼容的“静态插槽”架构，旨在提供一个稳定、直观、易于管理的群组激励方案。
 
+> **⚠️ 风险提示**
+> 本插件的核心代码由 AI (Gemini) 协助编写，尽管经过了多次测试与重构，但仍可能存在未知的错误或逻辑漏洞。请您在使用前，务必做好数据备份，并谨慎用于生产环境。
+
 **当前版本:** 0.5.1
-**作者:** Future-404
+**作者:** Future-404 & Gemini
 
 ---
 
@@ -56,9 +59,9 @@ checkin_plugin_pro:
   database:
     host: "mysql"
     port: 3306
-    user: "Future404"
-    password: "your_password_here"
-    db_name: "checkin_plugin_db"
+    user: "your_user" # <--- 已替换为占位符
+    password: "YOUR_PASSWORD_HERE" # <--- 已替换为占位符
+    db_name: "your_db_name" # <--- 已替换为占位符
 
   # 【可选】签到奖励数值 (若不填则使用默认值)
   rewards:
@@ -82,7 +85,7 @@ checkin_plugin_pro:
     item_cost: 100
 ```
 
-### **第四步：设**置管理员
+### **第四步：设置管理员**
 
 请确保您的 QQ 号已添加在 AstrBot 主配置文件的 `admins` 列表中，以便您能使用管理员指令。
 
@@ -108,11 +111,4 @@ checkin_plugin_pro:
 
 ---
 
-*This plugin was proudly crafted by Future-404 & Gemini.*添加白名单`
-- **取消授权**: `/移除白名单`
-- **批量导入**: `/导入兑换码 [商品名称]` (然后按提示发送 `.txt` 文件)
-- **获取导入帮助**: `/导入兑换码`
-
----
-
-*This plugin was proudly crafted by Future-404.*
+*This plugin was proudly crafted by Future-404 & Gemini.*
