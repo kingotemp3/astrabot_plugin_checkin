@@ -59,9 +59,9 @@ checkin_plugin_pro:
   database:
     host: "mysql"
     port: 3306
-    user: "your_user" # <--- 已替换为占位符
-    password: "YOUR_PASSWORD_HERE" # <--- 已替换为占位符
-    db_name: "your_db_name" # <--- 已替换为占位符
+    user: "your_user" # 
+    password: "YOUR_PASSWORD_HERE" 
+    db_name: "your_db_name" # 
 
   # 【可选】签到奖励数值 (若不填则使用默认值)
   rewards:
