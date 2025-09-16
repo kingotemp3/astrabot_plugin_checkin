@@ -14,15 +14,7 @@
 
 ## 🔧 安装与配置
 
-### **第一步：安装依赖 (Dependencies)**
-
-本插件的依赖项已在 `requirements.txt` 文件中列出。请在您的 AstrBot 环境中，进入本插件的目录，并运行以下命令来安装所有必需的库：
-
-```bash
-pip install -r requirements.txt
-```
-
-### **第二步：配置 MySQL 数据库**
+### **第一步：配置 MySQL 数据库**
 
 本插件需要一个 MySQL 数据库来储存用户积分、签到状态等信息。如果您是初次接触 MySQL，请不用担心，按照以下步骤操作即可。
 
