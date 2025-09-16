@@ -1,5 +1,5 @@
-name: checkin_plugin # 这是你的插件的唯一识别名。
-desc: 一个为群组设计的（目前仅支持qq群）、功能强大的激励与奖励系统。集成了高度可配置的每日签到（支持随机积分、暴击与首次奖励）和多商品“多宝阁”兑换商店。可通过指令管理白名单与兑换码库存。 # 插件简短描述
-version: v 0.5.1 # 插件版本号。格式：v1.1.1 或者 v1.1
-author: Future404 # 作者
+name: GlowMind商城 # 这是你的插件的唯一识别名。
+desc: 一个为群组设计的（目前仅支持qq群）、功能强大的激励与奖励系统。集成了高度可配置的每日签到（支持随机积分、暴击与首次奖励）和多商品兑换GlowMind兑换码。可通过指令管理白名单与兑换码库存。 # 插件简短描述
+version: v 1.0.0 # 插件版本号。格式：v1.1.1 或者 v1.1
+author: Future-404 # 作者
 repo: git clone https://github.com/Future-404/astrabot_plugin_checkin.git # 插件的仓库地址

@@ -1,9 +1,21 @@
 {
+  "general_settings": {
+    "description": "【全局设定】",
+    "type": "object",
+    "items": {
+      "timezone_offset_hours": {
+        "description": "【签到重置时区偏移量 (小时)】",
+        "type": "float",
+        "default": 8,
+        "hint": "相对于 UTC 时间的小时偏移量。例如：北京时间请输入 8，东京时间请输入 9，印度时间请输入 5.5。"
+      }
+    }
+  },
   "database": {
     "description": "【数据库连接信息】",
     "type": "object",
     "items": {
-      "host": { "description": "数据库主机地址", "type": "string", "default": "mysql" },
+      "host": { "description": "数据库主机地址", "type": "string", "default": "127.0.0.1" },
       "port": { "description": "数据库端口", "type": "int", "default": 3306 },
       "user": { "description": "数据库用户名", "type": "string", "default": "your_user" },
       "password": { "description": "数据库密码", "type": "string", "default": "YOUR_PASSWORD_HERE" },
@@ -20,31 +32,35 @@
       "crit_chance": { "description": "签到时触发积分翻倍的概率 (0.0 至 1.0)", "type": "float", "default": 0.05 }
     }
   },
+
   "item_slot_1": {
     "description": "【商品栏一】",
     "type": "object",
     "items": {
       "enabled": { "description": "是否启用此商品栏", "type": "bool", "default": true },
-      "item_name": { "description": "【商品名称】 (如 灵石)", "type": "string" },
+      "item_name": { "description": "【商品名称】", "type": "string" },
       "item_cost": { "description": "【兑换价格】", "type": "int", "default": 75 }
     }
   },
+
   "item_slot_2": {
     "description": "【商品栏二】",
     "type": "object",
     "items": {
       "enabled": { "description": "是否启用此商品栏", "type": "bool", "default": false },
-      "item_name": { "description": "【商品名称】 (如 月石)", "type": "string" },
+      "item_name": { "description": "【商品名称】", "type": "string" },
       "item_cost": { "description": "【兑换价格】", "type": "int", "default": 150 }
     }
   },
+
   "item_slot_3": {
-    "description": "【商品栏三】(可根据需要继续添加 item_slot_4, 5...)",
+    "description": "【商品栏三】",
     "type": "object",
     "items": {
       "enabled": { "description": "是否启用此商品栏", "type": "bool", "default": false },
       "item_name": { "description": "【商品名称】", "type": "string" },
       "item_cost": { "description": "【兑换价格】", "type": "int" }
+      "hint": "可根据需要在 _conf_schema.json文件下继续添加更多商品栏"
     }
   }
 }
