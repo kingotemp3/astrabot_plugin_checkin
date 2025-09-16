@@ -157,7 +157,7 @@ class CheckinPluginPro(Star):
             inventory_counts = {row[0]: row[1] for row in results}
         return inventory_counts
 
-    @filter.regex(r"^(GlowMind积分商城|商品列表)$")
+    @filter.regex(r"^(GlowMind|阁楼)$")
     @require_whitelisted_group
     async def show_redeemable_items(self, event: AstrMessageEvent):
         inventory_counts = await self._get_all_inventory_counts()
@@ -187,14 +187,15 @@ class CheckinPluginPro(Star):
     async def redeem_item(self, event: AstrMessageEvent):
         full_message = event.message_str.strip()
         item_name_to_redeem = full_message[2:].strip()
-        
+
         if not item_name_to_redeem:
             yield event.plain_result("请输入您想兑换的商品名称。")
             return
 
-        if not isinstance(event, AiocqhttpMessageEvent): return
+        if not isinstance(event, AiocqhttpMessageEvent):
+            return
         user_id, user_name = event.get_sender_id(), event.get_sender_name()
-        
+
         target_item = self._find_item_by_name(item_name_to_redeem)
         if not target_item:
             yield event.plain_result(f"抱歉，GlowMind积分商城中没有名为“{item_name_to_redeem}”的商品。")
@@ -203,35 +204,60 @@ class CheckinPluginPro(Star):
         item_name = target_item.get('item_name')
         internal_id = target_item.get('internal_id')
         cost = target_item.get('item_cost', 99999)
+        the_code = "" # 初始化
 
-        user_points_query = f"SELECT points FROM {self.TABLE_USERS} WHERE qq_id = %s"
-        current_points_result = await self._execute_query(user_points_query, (user_id,), fetch='one')
-        current_points = (current_points_result or [0])[0]
+        # --- 事务开始 ---
+        async with self.db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                try:
+                    await conn.begin()
 
-        if current_points < cost:
-            yield event.plain_result(f"{user_name}，您的积分不足 {cost}，无法兑换【{item_name}】。")
-            return
-        
-        code_query = f"SELECT id, code FROM {self.TABLE_CODES} WHERE item_type = %s LIMIT 1"
-        code_record = await self._execute_query(code_query, (internal_id,), fetch='one')
-        
-        if not code_record:
-            yield event.plain_result(f"抱歉，【{item_name}】的库存已空。")
-            return
-        
-        code_id, the_code = code_record
+                    # 1. 锁定并检查用户积分
+                    await cur.execute(f"SELECT points FROM {self.TABLE_USERS} WHERE qq_id = %s FOR UPDATE", (user_id,))
+                    current_points_result = await cur.fetchone()
+                    
+                    current_points = (current_points_result or [0])[0]
 
+                    if current_points < cost:
+                        yield event.plain_result(f"{user_name}，您的积分不足 {cost}，无法兑换【{item_name}】。")
+                        await conn.rollback()
+                        return
+
+                    # 2. 锁定并获取一个兑换码
+                    await cur.execute(f"SELECT id, code FROM {self.TABLE_CODES} WHERE item_type = %s LIMIT 1 FOR UPDATE", (internal_id,))
+                    code_record = await cur.fetchone()
+
+                    if not code_record:
+                        yield event.plain_result(f"抱歉，【{item_name}】的库存已空。")
+                        await conn.rollback()
+                        return
+                    
+                    code_id, the_code = code_record
+
+                    # 3. 扣除积分
+                    await cur.execute(f"UPDATE {self.TABLE_USERS} SET points = points - %s WHERE qq_id = %s", (cost, user_id))
+                    
+                    # 4. 删除已使用的兑换码
+                    await cur.execute(f"DELETE FROM {self.TABLE_CODES} WHERE id = %s", (code_id,))
+
+                    # 5. 提交事务
+                    await conn.commit()
+
+                except Exception as e:
+                    await conn.rollback()
+                    logger.error(f"用户 {user_id} 兑换【{item_name}】时发生数据库事务错误: {e}", exc_info=True)
+                    yield event.plain_result(f"兑换失败，发生意外的数据库错误，请联系管理员。")
+                    return
+        # --- 事务结束 ---
+
+        # 事务成功后，发送私信
         try:
             client = event.bot
             await client.send_private_msg(user_id=user_id, message=f"您好！您成功使用 {cost} 积分兑换了【{item_name}】，请查收：\n{the_code}")
-            
-            await self._execute_query(f"UPDATE {self.TABLE_USERS} SET points = points - %s WHERE qq_id = %s", (cost, user_id))
-            await self._execute_query(f"DELETE FROM {self.TABLE_CODES} WHERE id = %s", (code_id,))
-
             yield event.plain_result(f"恭喜 {user_name}！兑换【{item_name}】成功，秘宝已通过私聊发送！")
         except Exception as e:
-            logger.error(f"兑换【{item_name}】私聊发送失败: {e}", exc_info=True)
-            yield event.plain_result(f" @{user_name} 兑换成功！但私聊时发生未知错误，请联系管理员。")
+            logger.error(f"兑换【{item_name}】私聊发送失败 (但积分和库存已扣除): {e}", exc_info=True)
+            yield event.plain_result(f"@{user_name} 兑换成功！但私聊发送时发生未知错误，请联系管理员并提供此消息截图以补发。")
 
     # --- 辅助与管理功能 ---
     async def is_group_whitelisted(self, group_id: int) -> bool:
@@ -304,29 +330,46 @@ class CheckinPluginPro(Star):
     @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("调整积分", alias={'奖励积分'})
     async def adjust_points_manual(self, event: AstrMessageEvent, user_id: int, points_delta: int):
-        # 此函数涉及事务（FOR UPDATE），故保留原始的数据库操作方式以确保原子性
+        original_points = 0
+        new_points = 0
+        
         async with self.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(f"SELECT points FROM {self.TABLE_USERS} WHERE qq_id = %s FOR UPDATE", (user_id,))
-                result = await cur.fetchone()
-                
-                if result is None:
-                    yield event.plain_result(f"操作失败：用户 {user_id} 不存在于本插件的数据库中。")
+                try:
+                    await conn.begin()
+                    
+                    await cur.execute(f"SELECT points FROM {self.TABLE_USERS} WHERE qq_id = %s FOR UPDATE", (user_id,))
+                    result = await cur.fetchone()
+                    
+                    if result is None:
+                        original_points = 0
+                        new_points = max(0, original_points + points_delta)
+                        if new_points > 0:
+                           await cur.execute(f"INSERT INTO {self.TABLE_USERS} (qq_id, points, last_checkin) VALUES (%s, %s, NULL)", (user_id, new_points))
+                        else:
+                           yield event.plain_result(f"操作失败：用户 {user_id} 不存在，且操作结果为0或负积分。")
+                           await conn.rollback()
+                           return
+                    else:
+                        original_points = result[0]
+                        new_points = max(0, original_points + points_delta)
+                        await cur.execute(f"UPDATE {self.TABLE_USERS} SET points = %s WHERE qq_id = %s", (new_points, user_id))
+                    
+                    await conn.commit()
+                except Exception as e:
+                    await conn.rollback()
+                    logger.error(f"管理员调整用户 {user_id} 积分时发生数据库事务错误: {e}", exc_info=True)
+                    yield event.plain_result(f"调整积分失败，发生意外的数据库错误。")
                     return
 
-                original_points = result[0]
-                new_points = max(0, original_points + points_delta)
-                
-                await cur.execute(f"UPDATE {self.TABLE_USERS} SET points = %s WHERE qq_id = %s", (new_points, user_id))
-                
-                action_text = "奖励" if points_delta >= 0 else "扣除"
-                abs_delta = abs(points_delta)
-                
-                yield event.plain_result(
-                    f"操作成功！\n"
-                    f"已为用户 {user_id} {action_text} {abs_delta} 积分。\n"
-                    f"其积分已从 {original_points} 变为 {new_points}。"
-                )
+        action_text = "奖励" if points_delta >= 0 else "扣除"
+        abs_delta = abs(points_delta)
+        
+        yield event.plain_result(
+            f"操作成功！\n"
+            f"已为用户 {user_id} {action_text} {abs_delta} 积分。\n"
+            f"其积分已从 {original_points} 变为 {new_points}。"
+        )
 
     @filter.event_message_type(filter.EventMessageType.ALL)
     async def handle_group_member_decrease(self, event: AstrMessageEvent):
@@ -377,4 +420,4 @@ class CheckinPluginPro(Star):
         except Exception as e:
             logger.error(f"处理用户 {user_id} 退群事件时发生数据库错误: {e}", exc_info=True)
             
-        event.stop_event()top_event()
+        event.stop_event()

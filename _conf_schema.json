@@ -60,7 +60,6 @@
       "enabled": { "description": "是否启用此商品栏", "type": "bool", "default": false },
       "item_name": { "description": "【商品名称】", "type": "string" },
       "item_cost": { "description": "【兑换价格】", "type": "int" }
-      "hint": "可根据需要在 _conf_schema.json文件下继续添加更多商品栏"
     }
   }
 }
