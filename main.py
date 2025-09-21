@@ -157,11 +157,11 @@ class CheckinPluginPro(Star):
             inventory_counts = {row[0]: row[1] for row in results}
         return inventory_counts
 
-    @filter.regex(r"^(GlowMind|阁楼)$")
+    @filter.regex(r"^(商城|阁楼)$")
     @require_whitelisted_group
     async def show_redeemable_items(self, event: AstrMessageEvent):
         inventory_counts = await self._get_all_inventory_counts()
-        reply_text = "欢迎光临GlowMind积分商城！\n当前可兑换的秘宝有：\n"
+        reply_text = "欢迎光临1781积分商城！\n当前可兑换的秘宝有：\n"
         found_any = False
 
         for i in range(1, self.MAX_ITEM_SLOTS + 1):
