@@ -131,7 +131,7 @@ class CheckinPluginPro(Star):
             reply_message = f"{user_name} 签到成功！\n获得了 {base_points} 点基础积分"
             if is_crit:
                 final_points *= 2
-                reply_message += f"，触发幸运翻倍！\n最终获得 {final_points} 积分！"
+                reply_message += f"，🤑触发幸运翻倍！\n最终获得 {final_points} 积分！"
             else:
                 reply_message += "."
             
@@ -140,7 +140,7 @@ class CheckinPluginPro(Star):
         
         yield event.plain_result(reply_message)
 
-    @filter.regex(r"^我的积分$")
+    @filter.regex(r"^积分$")
     @require_whitelisted_group
     async def query_points(self, event: AstrMessageEvent):
         user_id, user_name = event.get_sender_id(), event.get_sender_name()
@@ -157,7 +157,7 @@ class CheckinPluginPro(Star):
             inventory_counts = {row[0]: row[1] for row in results}
         return inventory_counts
 
-    @filter.regex(r"^(商城|阁楼)$")
+    @filter.regex(r"^(商|阁楼)$")
     @require_whitelisted_group
     async def show_redeemable_items(self, event: AstrMessageEvent):
         inventory_counts = await self._get_all_inventory_counts()
