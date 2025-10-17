@@ -115,12 +115,12 @@ class CheckinPluginPro(Star):
         result = await self._execute_query(query, (user_id,), fetch='one')
 
         if result and result[1] == today:
-            yield event.plain_result(f"{user_name}，你今天已经签过到了哦，明天再来吧！")
+            yield event.plain_result(f"{user_name}，你今天已经签过到了哦，别想再白嫖，明天再来吧！")
             return
         
         if result is None:
             final_points = rewards_conf.get('first_checkin_points', 20)
-            reply_message = f"欢迎新朋友 {user_name}！首次签到获得特别奖励，获得 {final_points} 积分！"
+            reply_message = f"欢迎新朋友 {user_name}！首次签到获得特别新人大礼，你总共获得了 {final_points} 积分！"
             insert_query = f"INSERT INTO {self.TABLE_USERS} (qq_id, points, last_checkin) VALUES (%s, %s, %s)"
             await self._execute_query(insert_query, (user_id, final_points, today))
         else:
@@ -128,10 +128,10 @@ class CheckinPluginPro(Star):
             final_points = base_points
             is_crit = random.random() < rewards_conf.get('crit_chance', 0.05)
             
-            reply_message = f"{user_name} 签到成功！\n获得了 {base_points} 点基础积分"
+            reply_message = f"{user_name} 😘签到成功！\n获得了 {base_points} 点积分"
             if is_crit:
                 final_points *= 2
-                reply_message += f"，触发幸运翻倍！\n最终获得 {final_points} 积分！"
+                reply_message += f"，🤑666！触发幸运翻倍！\n最终获得 {final_points} 积分！"
             else:
                 reply_message += "."
             
@@ -140,7 +140,7 @@ class CheckinPluginPro(Star):
         
         yield event.plain_result(reply_message)
 
-    @filter.regex(r"^我的积分$")
+    @filter.regex(r"^积分$")
     @require_whitelisted_group
     async def query_points(self, event: AstrMessageEvent):
         user_id, user_name = event.get_sender_id(), event.get_sender_name()
@@ -157,11 +157,11 @@ class CheckinPluginPro(Star):
             inventory_counts = {row[0]: row[1] for row in results}
         return inventory_counts
 
-    @filter.regex(r"^(GlowMind|阁楼)$")
+    @filter.regex(r"^(商店|商城)$")
     @require_whitelisted_group
     async def show_redeemable_items(self, event: AstrMessageEvent):
         inventory_counts = await self._get_all_inventory_counts()
-        reply_text = "欢迎光临GlowMind积分商城！\n当前可兑换的秘宝有：\n"
+        reply_text = "欢迎光临1781积分商城！\n当前可兑换的秘宝有：\n"
         found_any = False
 
         for i in range(1, self.MAX_ITEM_SLOTS + 1):
@@ -179,7 +179,7 @@ class CheckinPluginPro(Star):
                 reply_text += f"   -库存: {stock} 件"
 
         if not found_any:
-            reply_text = "GlowMind积分商城今日正在盘点，暂无商品上架，敬请期待！"
+            reply_text = "1781积分商城今日正在盘点，暂无商品上架，敬请期待！"
         yield event.plain_result(reply_text)
 
     @filter.regex(r"^兑换\s*.+")
@@ -198,7 +198,7 @@ class CheckinPluginPro(Star):
 
         target_item = self._find_item_by_name(item_name_to_redeem)
         if not target_item:
-            yield event.plain_result(f"抱歉，GlowMind积分商城中没有名为“{item_name_to_redeem}”的商品。")
+            yield event.plain_result(f"抱歉，1781积分商城中没有名为“{item_name_to_redeem}”的商品。")
             return
 
         item_name = target_item.get('item_name')
@@ -257,7 +257,7 @@ class CheckinPluginPro(Star):
             yield event.plain_result(f"恭喜 {user_name}！兑换【{item_name}】成功，秘宝已通过私聊发送！")
         except Exception as e:
             logger.error(f"兑换【{item_name}】私聊发送失败 (但积分和库存已扣除): {e}", exc_info=True)
-            yield event.plain_result(f"@{user_name} 兑换成功！但私聊发送时发生未知错误，请联系管理员并提供此消息截图以补发。")
+            yield event.plain_result(f"@{user_name} 兑换成功！但私聊发送时发生未知错误，请联系管理员，如果你事先没有加bot为好友，就受着")
 
     # --- 辅助与管理功能 ---
     async def is_group_whitelisted(self, group_id: int) -> bool:
